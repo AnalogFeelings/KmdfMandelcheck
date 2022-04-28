@@ -1,0 +1,14 @@
+EXPORTS
+
+VidBitBlt
+VidBitBltEx
+VidBufferToScreenBlt
+VidCleanUp
+VidDisplayString
+VidDisplayStringXY
+VidInitialize
+VidResetDisplay
+VidScreenToBufferBlt
+VidSetScrollRegion
+VidSetTextColor
+VidSolidColorFill

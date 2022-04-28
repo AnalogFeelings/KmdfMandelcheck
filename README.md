@@ -4,6 +4,8 @@ This is a simple 200 LOC driver that displays a bitmap on screen after a BSOD oc
 
 It uses a modified merge of ReactOS's [display.h](https://github.com/reactos/reactos/blob/master/sdk/include/reactos/drivers/bootvid/display.h) and [bootvid.h](https://github.com/reactos/reactos/blob/master/sdk/include/reactos/drivers/bootvid/bootvid.h) to be able to work with bootvid.dll properly.
 
+⚠️ WARNING ⚠️ :: **This driver will not work under UEFI systems. You must use a VM booted into Legacy BIOS mode.**
+
 # Examples
 
 https://user-images.githubusercontent.com/51166756/165745429-e586719b-5f62-4fcd-9af0-697c6f76de2c.mp4

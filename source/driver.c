@@ -11,8 +11,8 @@
 //---------------------------DRIVER FUNCTION DECLARATIONS---------------------------//
 VOID						DriverUnload(PDRIVER_OBJECT DriverObj);
 NTSTATUS					DriverEntry(PDRIVER_OBJECT DriverObj, PUNICODE_STRING RegistryPath);
-NTSTATUS					ReadBitmapFile();
-NTSTATUS					InitializeBugcheckCallback();
+NTSTATUS					ReadBitmapFile(VOID);
+NTSTATUS					InitializeBugcheckCallback(VOID);
 KBUGCHECK_CALLBACK_ROUTINE	BugcheckCallback;
 
 //---------------------------DRIVER VARIABLE DECLARATIONS---------------------------//
@@ -59,7 +59,7 @@ VOID DriverUnload(PDRIVER_OBJECT DriverObj)
 	}
 }
 
-NTSTATUS ReadBitmapFile()
+NTSTATUS ReadBitmapFile(VOID)
 {
 	//Allocate the buffer. Must be nonpaged for it to be accessible inside the bugcheck
 	//callback.
@@ -110,7 +110,7 @@ NTSTATUS ReadBitmapFile()
 	return STATUS_SUCCESS;
 }
 
-NTSTATUS InitializeBugcheckCallback()
+NTSTATUS InitializeBugcheckCallback(VOID)
 {
 	//Allocate memory for the bugcheck callback record.
 	//Must be nonpaged for it to work.

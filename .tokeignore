@@ -1,0 +1,7 @@
+*.sln
+*.vcxproj
+*.inf
+*.vcxproj.filters
+*.md
+*.txt
+*.def

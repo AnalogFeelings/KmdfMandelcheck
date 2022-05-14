@@ -1,4 +1,11 @@
 # KmdfMandelcheck
+![GitHub repo size](https://img.shields.io/github/repo-size/aestheticalz/kmdfmandelcheck?label=Repo%20Size&style=flat-square)
+![Lines of code](https://img.shields.io/tokei/lines/github/aestheticalz/kmdfmandelcheck?label=Total%20Lines&style=flat-square)
+![GitHub issues](https://img.shields.io/github/issues/aestheticalz/kmdfmandelcheck?label=Issues&style=flat-square)
+![GitHub pull requests](https://img.shields.io/github/issues-pr/aestheticalz/kmdfmandelcheck?label=Pull%20Requests&style=flat-square)
+![GitHub](https://img.shields.io/github/license/aestheticalz/kmdfmandelcheck?style=flat-square)
+![GitHub Repo stars](https://img.shields.io/github/stars/aestheticalz/kmdfmandelcheck?label=Stars&style=flat-square)
+![GitHub commit activity](https://img.shields.io/github/commit-activity/m/aestheticalz/kmdfmandelcheck?label=Commit%20Activity&style=flat-square)
 
 This is a simple 200 LOC driver that displays a bitmap on screen after a BSOD occurs.
 

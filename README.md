@@ -29,7 +29,7 @@ Open Visual Studio 2022 (2019 *may* work) and select "Debug x64" or "Release x64
 
 # How To Run
 
-Drop `Mandelcheck.sys` in your VM and in an elevated command prompt run `sc create Mandelcheck binPath=C:\Where\The\File\Is\Mandelchecker.sys type=kernel start=auto`.
+Drop `Mandelcheck.sys` in your VM and in an elevated command prompt run `sc create Mandelcheck binPath=C:\Where\The\File\Is\Mandelcheck.sys type=kernel start=auto`.
 
 ## Building A Valid Bitmap
 

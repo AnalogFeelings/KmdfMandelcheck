@@ -43,4 +43,4 @@ Run `sc start Mandelcheck` in an elevated command prompt and create a BSOD. You 
 
 # License
 
-Licensed under GPL v3.
+Licensed under [GPL 3](LICENSE.txt).

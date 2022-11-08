@@ -11,7 +11,7 @@ NTSTATUS							InitializeBugcheckCallback(VOID);
 KBUGCHECK_CALLBACK_ROUTINE			BugcheckCallback;
 
 //---------------------------DRIVER VARIABLE DECLARATIONS---------------------------//
-PKBUGCHECK_CALLBACK_RECORD			BugcheckCallbackRecord = { 0 };
+PKBUGCHECK_CALLBACK_RECORD			BugcheckCallbackRecord;
 
 PVOID								KernelBaseAddress = NULL;
 UNICODE_STRING						KernelFileName = RTL_CONSTANT_STRING(L"ntoskrnl.exe");
@@ -58,6 +58,9 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObj, PUNICODE_STRING RegistryPath)
 	else
 	{
 		DbgPrint("[%s:%d WRN] KmdfMandelcheck: Detected modern UEFI system. Using Bgp backend...\n", __FILE__, __LINE__);
+		DbgPrint("[%s:%d ERR] KmdfMandelcheck: Bgp backend not yet supported.\n", __FILE__, __LINE__);
+
+		return STATUS_FAILED_DRIVER_ENTRY;
 	}
 
 	NTSTATUS KernelStatus = GetKernelBaseAddress(DriverObj);
@@ -89,13 +92,13 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObj, PUNICODE_STRING RegistryPath)
 		return STATUS_FAILED_DRIVER_ENTRY;
 	}
 
-	/*NTSTATUS CallbackStatus = InitializeBugcheckCallback();
+	NTSTATUS CallbackStatus = InitializeBugcheckCallback();
 	if(!NT_SUCCESS(CallbackStatus))
 	{
 		DbgPrint("[%s:%d ERR] KmdfMandelcheck: Error initializing bugcheck callback function. Status: 0x%lX\n", __FILE__, __LINE__, CallbackStatus);
 
 		return STATUS_FAILED_DRIVER_ENTRY;
-	}*/
+	}
 
 	DbgPrint("[%s:%d MSG] KmdfMandelcheck: Driver initialized successfully!\n", __FILE__, __LINE__);
 
@@ -108,8 +111,11 @@ VOID DriverUnload(PDRIVER_OBJECT DriverObj)
 
 	DbgPrint("[%s:%d WRN] KmdfMandelcheck: Unloading driver.\n", __FILE__, __LINE__);
 
-	/*KeDeregisterBugCheckCallback(BugcheckCallbackRecord);
-	ExFreePoolWithTag(BugcheckCallbackRecord, 'BCHK');*/
+	if(BugcheckCallbackRecord != NULL)
+	{
+		KeDeregisterBugCheckCallback(BugcheckCallbackRecord);
+		ExFreePoolWithTag(BugcheckCallbackRecord, 'BCHK');
+	}
 
 	if(LoadedBitmapFile != NULL)
 	{
@@ -208,13 +214,26 @@ VOID BugcheckCallback(PVOID Buffer, ULONG Length)
 
 	DbgPrint("[%s:%d MSG] KmdfMandelcheck: Bugcheck callback has been called!\n", __FILE__, __LINE__);
 
-	SCREEN_OFFSET BitmapOffset = { 0, 0 };
+	if(IsBiosSystem)
+	{
+		VidInitialize(TRUE);
+		VidResetDisplay(TRUE);
+		VidSolidColorFill(0, 0, 639, 479, BV_COLOR_BLACK);
 
-	InbvAcquireDisplayOwnership();
+		//BOOTVID seems to not like it when you include the header.
+		//Skip 14 bytes to remove it.
+		VidBitBlt(&LoadedBitmapFile[0xE], 0, 0);
+	}
+	else
+	{
+		SCREEN_OFFSET BitmapOffset = { 0, 0 };
 
-	BgpClearScreen(0xFF000000);
+		InbvAcquireDisplayOwnership();
 
-	BgpGxDrawBitmapImage(LoadedBitmapFile, BitmapOffset);
+		BgpClearScreen(0xFF000000);
+
+		BgpGxDrawBitmapImage(LoadedBitmapFile, BitmapOffset); //Gotta replace
+	}
 
 	while(TRUE)
 	{

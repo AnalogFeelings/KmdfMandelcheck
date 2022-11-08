@@ -20,8 +20,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="source\bootvid.h">
-      <Filter>Code Files</Filter>
-    </ClInclude>
+    <ClInclude Include="source\driver.h" />
+    <ClInclude Include="source\bootvid.h" />
   </ItemGroup>
 </Project>

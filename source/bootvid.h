@@ -1,5 +1,4 @@
-#ifndef BOOTVID_H
-#define BOOTVID_H
+#pragma once
 
 //https://github.com/reactos/reactos/blob/master/sdk/include/reactos/drivers/bootvid/display.h
 //https://github.com/reactos/reactos/blob/master/sdk/include/reactos/drivers/bootvid/bootvid.h
@@ -36,5 +35,3 @@ NTKERNELAPI VOID  	VidDisplayString(PUCHAR String);
 NTKERNELAPI ULONG   VidBitBlt(PVOID pbuff, ULONG x, ULONG y);
 NTKERNELAPI VOID  	VidScreenToBufferBlt(PUCHAR Buffer, ULONG Left, ULONG Top, ULONG Width, ULONG Height, ULONG Delta);
 NTKERNELAPI VOID  	VidSolidColorFill(ULONG Left, ULONG Top, ULONG Right, ULONG Bottom, UCHAR Color);
-
-#endif

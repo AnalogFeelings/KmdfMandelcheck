@@ -1,25 +1,33 @@
-#include <ntddk.h>
-#include "bootvid.h"
-
-//Limit allocated memory for the bitmap to 153.7 kilobytes.
-#define BMP_BUFF_CAP 153718
-
-//Visual Studio I swear to god, I have checked if "BugcheckCallbackRecord" is NULL.
-//I even return if it is. SO WHY ARE YOU COMPLAINING THAT IT COULD BE NULL?
-#pragma warning(disable: 6011 6387)
+#include "driver.h"
 
 //---------------------------DRIVER FUNCTION DECLARATIONS---------------------------//
-VOID						DriverUnload(PDRIVER_OBJECT DriverObj);
-NTSTATUS					DriverEntry(PDRIVER_OBJECT DriverObj, PUNICODE_STRING RegistryPath);
-NTSTATUS					ReadBitmapFile(VOID);
-NTSTATUS					InitializeBugcheckCallback(VOID);
-KBUGCHECK_CALLBACK_ROUTINE	BugcheckCallback;
+NTSTATUS							DriverEntry(PDRIVER_OBJECT DriverObj, PUNICODE_STRING RegistryPath);
+VOID								DriverUnload(PDRIVER_OBJECT DriverObj);
+
+NTSTATUS							GetKernelBaseAddress(PDRIVER_OBJECT DriverObj);
+NTSTATUS							ReadBitmapFile(VOID);
+NTSTATUS							InitializeBugcheckCallback(VOID);
+
+KBUGCHECK_CALLBACK_ROUTINE			BugcheckCallback;
 
 //---------------------------DRIVER VARIABLE DECLARATIONS---------------------------//
-PKBUGCHECK_CALLBACK_RECORD	BugcheckCallbackRecord;
-UNICODE_STRING				BitmapFilePath = RTL_CONSTANT_STRING(L"\\DosDevices\\C:\\KmdfMandelcheck\\target.bmp");
-PUCHAR						LoadedBitmapFile;
-HANDLE						FileHandle;
+PKBUGCHECK_CALLBACK_RECORD			BugcheckCallbackRecord = { 0 };
+
+PVOID								KernelBaseAddress = NULL;
+UNICODE_STRING						KernelFileName = RTL_CONSTANT_STRING(L"ntoskrnl.exe");
+
+UNICODE_STRING						BitmapFilePath = RTL_CONSTANT_STRING(L"\\DosDevices\\C:\\KmdfMandelcheck\\target.bmp");
+PUCHAR								LoadedBitmapFile;
+HANDLE								FileHandle = NULL;
+
+BgpClearScreen_t					BgpClearScreen = NULL;
+BgpGxDrawBitmapImage_t				BgpGxDrawBitmapImage = NULL;
+
+BOOLEAN								IsBiosSystem = FALSE;
+GUID								RandomGuid = { 0 };
+UNICODE_STRING						RandomGuidString = RTL_CONSTANT_STRING(L"{3098e337-c95e-4802-93a1-a986e8fd20de}");
+
+UNICODE_STRING						RandomFirmwareVarName = RTL_CONSTANT_STRING(L"TransRights");
 
 //===================================================================================//
 
@@ -31,13 +39,63 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObj, PUNICODE_STRING RegistryPath)
 
 	DriverObj->DriverUnload = DriverUnload;
 
+	NTSTATUS GuidStatus = RtlGUIDFromString(&RandomGuidString, &RandomGuid);
+	if(!NT_SUCCESS(GuidStatus))
+	{
+		DbgPrint("[%s:%d ERR] KmdfMandelcheck: Error converting string to GUID. Status: 0x%lX\n", __FILE__, __LINE__, GuidStatus);
+
+		return STATUS_FAILED_DRIVER_ENTRY;
+	}
+
+	ULONG UnusedLength = 0;
+	NTSTATUS FirmwareStatus = ExGetFirmwareEnvironmentVariable(&RandomFirmwareVarName, &RandomGuid, NULL, &UnusedLength, NULL);
+	if(FirmwareStatus == STATUS_NOT_IMPLEMENTED)
+	{
+		DbgPrint("[%s:%d WRN] KmdfMandelcheck: Detected Legacy BIOS system. Using BOOTVID.dll backend...\n", __FILE__, __LINE__);
+
+		IsBiosSystem = TRUE;
+	}
+	else
+	{
+		DbgPrint("[%s:%d WRN] KmdfMandelcheck: Detected modern UEFI system. Using Bgp backend...\n", __FILE__, __LINE__);
+	}
+
+	NTSTATUS KernelStatus = GetKernelBaseAddress(DriverObj);
+	if (!NT_SUCCESS(KernelStatus))
+	{
+		DbgPrint("[%s:%d ERR] KmdfMandelcheck: Error retrieving kernel base address. Status: 0x%lX\n", __FILE__, __LINE__, KernelStatus);
+
+		return STATUS_FAILED_DRIVER_ENTRY;
+	}
+
+#ifdef _DEBUG
+	DbgPrint("[%s:%d DBG] KmdfMandelcheck: Kernel base: 0x%p\n", __FILE__, __LINE__, KernelBaseAddress);
+#endif
+
+	//TODO: replace with proper offset detection lmao
+	BgpClearScreen = (BgpClearScreen_t)((ULONG_PTR)KernelBaseAddress + 0x65B9B0);
+	BgpGxDrawBitmapImage = (BgpGxDrawBitmapImage_t)((ULONG_PTR)KernelBaseAddress + 0xADE730);
+
+#ifdef _DEBUG
+	DbgPrint("[%s:%d DBG] KmdfMandelcheck: BgpClearScreen address: 0x%llX\n", __FILE__, __LINE__, (ULONG_PTR)BgpClearScreen);
+	DbgPrint("[%s:%d DBG] KmdfMandelcheck: BgpGxDrawBitmapImage address: 0x%llX\n", __FILE__, __LINE__, (ULONG_PTR)BgpGxDrawBitmapImage);
+#endif
+
 	NTSTATUS BitmapStatus = ReadBitmapFile();
 	if(!NT_SUCCESS(BitmapStatus))
-		return BitmapStatus;
+	{
+		DbgPrint("[%s:%d ERR] KmdfMandelcheck: Error reading target bitmap file. Status: 0x%lX\n", __FILE__, __LINE__, BitmapStatus);
 
-	NTSTATUS CallbackStatus = InitializeBugcheckCallback();
+		return STATUS_FAILED_DRIVER_ENTRY;
+	}
+
+	/*NTSTATUS CallbackStatus = InitializeBugcheckCallback();
 	if(!NT_SUCCESS(CallbackStatus))
-		return CallbackStatus;
+	{
+		DbgPrint("[%s:%d ERR] KmdfMandelcheck: Error initializing bugcheck callback function. Status: 0x%lX\n", __FILE__, __LINE__, CallbackStatus);
+
+		return STATUS_FAILED_DRIVER_ENTRY;
+	}*/
 
 	DbgPrint("[%s:%d MSG] KmdfMandelcheck: Driver initialized successfully!\n", __FILE__, __LINE__);
 
@@ -50,8 +108,8 @@ VOID DriverUnload(PDRIVER_OBJECT DriverObj)
 
 	DbgPrint("[%s:%d WRN] KmdfMandelcheck: Unloading driver.\n", __FILE__, __LINE__);
 
-	KeDeregisterBugCheckCallback(BugcheckCallbackRecord);
-	ExFreePoolWithTag(BugcheckCallbackRecord, 'BCHK');
+	/*KeDeregisterBugCheckCallback(BugcheckCallbackRecord);
+	ExFreePoolWithTag(BugcheckCallbackRecord, 'BCHK');*/
 
 	if(LoadedBitmapFile != NULL)
 	{
@@ -59,19 +117,34 @@ VOID DriverUnload(PDRIVER_OBJECT DriverObj)
 	}
 }
 
+NTSTATUS GetKernelBaseAddress(PDRIVER_OBJECT DriverObj)
+{
+	PLDR_DATA_TABLE_ENTRY DriverEntry = (PLDR_DATA_TABLE_ENTRY)DriverObj->DriverSection;
+	PLDR_DATA_TABLE_ENTRY FirstEntry = DriverEntry;
+
+	while((PLDR_DATA_TABLE_ENTRY)DriverEntry->InLoadOrderLinks.Flink != FirstEntry)
+	{
+		if(RtlCompareUnicodeString(&DriverEntry->BaseDllName, &KernelFileName, TRUE) == 0)
+		{
+			KernelBaseAddress = DriverEntry->DllBase;
+
+			return STATUS_SUCCESS;
+		}
+
+		DriverEntry = (PLDR_DATA_TABLE_ENTRY)DriverEntry->InLoadOrderLinks.Flink;
+	}
+
+	return STATUS_NOT_FOUND;
+}
+
 NTSTATUS ReadBitmapFile(VOID)
 {
 	//Allocate the buffer. Must be nonpaged for it to be accessible inside the bugcheck
 	//callback.
 	LoadedBitmapFile = ExAllocatePoolZero(NonPagedPoolNx, BMP_BUFF_CAP, 'BTMP');
-	if(LoadedBitmapFile == NULL)
-	{
-		DbgPrint("[%s:%d ERR] KmdfMandelcheck: Could not allocate memory for bitmap.\n", __FILE__, __LINE__);
+	if (LoadedBitmapFile == NULL) return STATUS_INSUFFICIENT_RESOURCES;
 
-		return STATUS_FAILED_DRIVER_ENTRY;
-	}
-
-	OBJECT_ATTRIBUTES ObjectAttributes;
+	OBJECT_ATTRIBUTES ObjectAttributes = { 0 };
 	InitializeObjectAttributes(&ObjectAttributes, &BitmapFilePath, OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE, NULL, NULL);
 
 	NTSTATUS FileStatus;
@@ -84,11 +157,10 @@ NTSTATUS ReadBitmapFile(VOID)
 								NULL, 0);
 	if(!NT_SUCCESS(FileStatus))
 	{
-		DbgPrint("[%s:%d ERR] KmdfMandelcheck: Could not open target bitmap file. Status: %lX\n", __FILE__, __LINE__, FileStatus);
 		ZwClose(FileHandle);
 		ExFreePoolWithTag(LoadedBitmapFile, 'BTMP');
 
-		return STATUS_FAILED_DRIVER_ENTRY;
+		return FileStatus;
 	}
 
 	//Actually perform the read operation into the buffer.
@@ -97,11 +169,10 @@ NTSTATUS ReadBitmapFile(VOID)
 							BMP_BUFF_CAP, NULL, NULL);
 	if(!NT_SUCCESS(FileStatus))
 	{
-		DbgPrint("[%s:%d ERR] KmdfMandelcheck: Could not read target bitmap file. Status: %lX\n", __FILE__, __LINE__, FileStatus);
 		ZwClose(FileHandle);
 		ExFreePoolWithTag(LoadedBitmapFile, 'BTMP');
 
-		return STATUS_FAILED_DRIVER_ENTRY;
+		return FileStatus;
 	}
 
 	//Close handle to file. We don't need it anymore.
@@ -115,46 +186,38 @@ NTSTATUS InitializeBugcheckCallback(VOID)
 	//Allocate memory for the bugcheck callback record.
 	//Must be nonpaged for it to work.
 	BugcheckCallbackRecord = ExAllocatePoolZero(NonPagedPool, sizeof(KBUGCHECK_CALLBACK_RECORD), 'BCHK');
-	if(BugcheckCallback == NULL)
-	{
-		DbgPrint("[%s:%d ERR] KmdfMandelcheck: Could not allocate memory for the callback record.\n", __FILE__, __LINE__);
-
-		return STATUS_INSUFFICIENT_RESOURCES;
-	}
+	if(BugcheckCallbackRecord == NULL) return STATUS_INSUFFICIENT_RESOURCES;
 
 	KeInitializeCallbackRecord(BugcheckCallbackRecord);
 
 	BOOLEAN Registered = KeRegisterBugCheckCallback(BugcheckCallbackRecord, BugcheckCallback, NULL, 0, (PUCHAR)"KmdfMandelcheck");
 	if(!Registered)
 	{
-		DbgPrint("[%s:%d ERR] KmdfMandelcheck: Could not register callback.\n", __FILE__, __LINE__);
 		ExFreePoolWithTag(BugcheckCallbackRecord, 'BCHK');
 
-		return STATUS_FAILED_DRIVER_ENTRY;
+		return STATUS_UNSUCCESSFUL;
 	}
 
 	return STATUS_SUCCESS;
 }
 
-//Initialize BOOTVID.DLL and blit the loaded bitmap to the screen.
-//Then enter an infinite loop to prevent windows from automatically rebooting.
 VOID BugcheckCallback(PVOID Buffer, ULONG Length)
 {
 	UNREFERENCED_PARAMETER(Buffer);
 	UNREFERENCED_PARAMETER(Length);
 
-	DbgPrint("[%s:%d WRN] KmdfMandelcheck: Bugcheck callback has been called!\n", __FILE__, __LINE__);
+	DbgPrint("[%s:%d MSG] KmdfMandelcheck: Bugcheck callback has been called!\n", __FILE__, __LINE__);
 
-	VidInitialize(TRUE);
-	VidResetDisplay(TRUE);
-	VidSolidColorFill(0, 0, 639, 479, BV_COLOR_BLACK);
+	SCREEN_OFFSET BitmapOffset = { 0, 0 };
 
-	//BOOTVID seems to not like it when you include the header.
-	//Skip 14 bytes to remove it.
-	VidBitBlt(&LoadedBitmapFile[0xE], 0, 0);
+	InbvAcquireDisplayOwnership();
 
-	DbgPrint("[%s:%d WRN] KmdfMandelcheck: Image has been drawn! Entering infinite loop...\n", __FILE__, __LINE__);
+	BgpClearScreen(0xFF000000);
 
-	for(;;)
-		;
+	BgpGxDrawBitmapImage(LoadedBitmapFile, BitmapOffset);
+
+	while(TRUE)
+	{
+		__nop();
+	}
 }

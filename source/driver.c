@@ -63,26 +63,29 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObj, PUNICODE_STRING RegistryPath)
 		return STATUS_FAILED_DRIVER_ENTRY;
 	}
 
-	NTSTATUS KernelStatus = GetKernelBaseAddress(DriverObj);
-	if (!NT_SUCCESS(KernelStatus))
+	if(!IsBiosSystem)
 	{
-		DbgPrint("[%s:%d ERR] KmdfMandelcheck: Error retrieving kernel base address. Status: 0x%lX\n", __FILE__, __LINE__, KernelStatus);
+		NTSTATUS KernelStatus = GetKernelBaseAddress(DriverObj);
+		if (!NT_SUCCESS(KernelStatus))
+		{
+			DbgPrint("[%s:%d ERR] KmdfMandelcheck: Error retrieving kernel base address. Status: 0x%lX\n", __FILE__, __LINE__, KernelStatus);
 
-		return STATUS_FAILED_DRIVER_ENTRY;
+			return STATUS_FAILED_DRIVER_ENTRY;
+		}
+
+#ifdef _DEBUG
+		DbgPrint("[%s:%d DBG] KmdfMandelcheck: Kernel base: 0x%p\n", __FILE__, __LINE__, KernelBaseAddress);
+#endif
+
+		//TODO: replace with proper offset detection lmao
+		BgpClearScreen = (BgpClearScreen_t)((ULONG_PTR)KernelBaseAddress + 0x65B9B0);
+		BgpGxDrawBitmapImage = (BgpGxDrawBitmapImage_t)((ULONG_PTR)KernelBaseAddress + 0xADE730);
+
+#ifdef _DEBUG
+		DbgPrint("[%s:%d DBG] KmdfMandelcheck: BgpClearScreen address: 0x%llX\n", __FILE__, __LINE__, (ULONG_PTR)BgpClearScreen);
+		DbgPrint("[%s:%d DBG] KmdfMandelcheck: BgpGxDrawBitmapImage address: 0x%llX\n", __FILE__, __LINE__, (ULONG_PTR)BgpGxDrawBitmapImage);
+#endif
 	}
-
-#ifdef _DEBUG
-	DbgPrint("[%s:%d DBG] KmdfMandelcheck: Kernel base: 0x%p\n", __FILE__, __LINE__, KernelBaseAddress);
-#endif
-
-	//TODO: replace with proper offset detection lmao
-	BgpClearScreen = (BgpClearScreen_t)((ULONG_PTR)KernelBaseAddress + 0x65B9B0);
-	BgpGxDrawBitmapImage = (BgpGxDrawBitmapImage_t)((ULONG_PTR)KernelBaseAddress + 0xADE730);
-
-#ifdef _DEBUG
-	DbgPrint("[%s:%d DBG] KmdfMandelcheck: BgpClearScreen address: 0x%llX\n", __FILE__, __LINE__, (ULONG_PTR)BgpClearScreen);
-	DbgPrint("[%s:%d DBG] KmdfMandelcheck: BgpGxDrawBitmapImage address: 0x%llX\n", __FILE__, __LINE__, (ULONG_PTR)BgpGxDrawBitmapImage);
-#endif
 
 	NTSTATUS BitmapStatus = ReadBitmapFile();
 	if(!NT_SUCCESS(BitmapStatus))

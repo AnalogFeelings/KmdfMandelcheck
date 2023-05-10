@@ -1,11 +1,11 @@
 # KmdfMandelcheck
-![GitHub repo size](https://img.shields.io/github/repo-size/aestheticalz/kmdfmandelcheck?label=Repo%20Size&style=flat-square)
-![Lines of code](https://img.shields.io/tokei/lines/github/aestheticalz/kmdfmandelcheck?label=Total%20Lines&style=flat-square)
-![GitHub issues](https://img.shields.io/github/issues/aestheticalz/kmdfmandelcheck?label=Issues&style=flat-square)
-![GitHub pull requests](https://img.shields.io/github/issues-pr/aestheticalz/kmdfmandelcheck?label=Pull%20Requests&style=flat-square)
-![GitHub](https://img.shields.io/github/license/aestheticalz/kmdfmandelcheck?style=flat-square)
-![GitHub Repo stars](https://img.shields.io/github/stars/aestheticalz/kmdfmandelcheck?label=Stars&style=flat-square)
-![GitHub commit activity](https://img.shields.io/github/commit-activity/m/aestheticalz/kmdfmandelcheck?label=Commit%20Activity&style=flat-square)
+![GitHub repo size](https://img.shields.io/github/repo-size/analogfeelings/kmdfmandelcheck?label=Repo%20Size&style=flat-square)
+![Lines of code](https://img.shields.io/tokei/lines/github/analogfeelings/kmdfmandelcheck?label=Total%20Lines&style=flat-square)
+![GitHub issues](https://img.shields.io/github/issues/analogfeelings/kmdfmandelcheck?label=Issues&style=flat-square)
+![GitHub pull requests](https://img.shields.io/github/issues-pr/analogfeelings/kmdfmandelcheck?label=Pull%20Requests&style=flat-square)
+![GitHub](https://img.shields.io/github/license/analogfeelings/kmdfmandelcheck?style=flat-square)
+![GitHub Repo stars](https://img.shields.io/github/stars/analogfeelings/kmdfmandelcheck?label=Stars&style=flat-square)
+![GitHub commit activity](https://img.shields.io/github/commit-activity/m/analogfeelings/kmdfmandelcheck?label=Commit%20Activity&style=flat-square)
 
 This is a simple 200 LOC driver that displays a bitmap on screen after a BSOD occurs.
 
@@ -39,7 +39,7 @@ Open your bitmap file in GIMP, scale/crop it down to 640x480, and make it a 16 c
 
 ## And Now...
 
-Run `sc start Mandelcheck` in an elevated command prompt and create a BSOD. You can use [BSODMachine](https://github.com/AestheticalZ/BSODMachine) for an easy way, or you can break and execute `.crash` in WinDBG. If you are using WinDBG, once a bugcheck occurs, you must enter `g` to continue execution, otherwise the system will be completely halted.
+Run `sc start Mandelcheck` in an elevated command prompt and create a BSOD. You can use [BSODMachine](https://github.com/AnalogFeelings/BSODMachine) for an easy way, or you can break and execute `.crash` in WinDBG. If you are using WinDBG, once a bugcheck occurs, you must enter `g` to continue execution, otherwise the system will be completely halted.
 
 # License
 
